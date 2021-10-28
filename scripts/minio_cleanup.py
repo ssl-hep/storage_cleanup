@@ -34,10 +34,34 @@ import sys
 from servicex_storage import minio_storage_manager
 
 
+# function to initialize logging
+def initialize_logging():
+    """
+    Get a logger and initialize it so that it outputs the correct format
+
+    :param request: Request id to insert into log messages
+    :return: logger with correct formatting that outputs to console
+    """
+
+    log = logging.getLogger()
+    if 'INSTANCE_NAME' in os.environ:
+        instance = os.environ['INSTANCE_NAME']
+    else:
+        instance = 'Unknown'
+    formatter = logging.Formatter('%(levelname)s ' +
+                                  "{} minio_cleanup None ".format(instance) +
+                                  '%(message)s')
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.INFO)
+    log.addHandler(handler)
+    log.setLevel(logging.INFO)
+    return log
+
+
 def run_minio_cleaner():
     '''Run the minio cleaner
     '''
-    logger = logging.getLogger()
 
     # Parse the command line arguments
     parser = argparse.ArgumentParser()
@@ -60,13 +84,14 @@ def run_minio_cleaner():
         sys.exit(1)
 
     try:
-        store = servicex_storage.minio_storage_manager.MinioStore(minio_url=os.environ['MINIO_URL'],
-                                                                  access_key=os.environ['ACCESS_KEY'],
-                                                                  secret_key=os.environ['SECRET_KEY'])
+        store = minio_storage_manager.MinioStore(minio_url=os.environ['MINIO_URL'],
+                                                 access_key=os.environ['ACCESS_KEY'],
+                                                 secret_key=os.environ['SECRET_KEY'])
         store.cleanup_storage()
     finally:
         logger.info('Done running minio storage cleanup')
 
 
 if __name__ == "__main__":
+    logger = initialize_logging()
     run_minio_cleaner()
