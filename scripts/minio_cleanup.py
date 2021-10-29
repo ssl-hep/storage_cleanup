@@ -39,7 +39,6 @@ def initialize_logging():
   """
   Get a logger and initialize it so that it outputs the correct format
 
-  :param request: Request id to insert into log messages
   :return: logger with correct formatting that outputs to console
   """
 
@@ -48,9 +47,9 @@ def initialize_logging():
     instance = os.environ['INSTANCE_NAME']
   else:
     instance = 'Unknown'
-  formatter = logging.Formatter('%(levelname)s ' +
-                                "{} minio_cleanup None ".format(instance) +
-                                '%(message)s')
+  formatter = logging.Formatter('%(levelname)s '
+                                + "{} minio_cleanup None ".format(instance)
+                                + '%(message)s')
   handler = logging.StreamHandler()
   handler.setFormatter(formatter)
   handler.setLevel(logging.INFO)
@@ -79,7 +78,7 @@ def run_minio_cleaner():
         raw_max *= 2 ** 20
       elif mult == 'G':
         raw_max *= 2 ** 30
-      elif mult == 'T'
+      elif mult == 'T':
         raw_max *= 2 ** 40
       else:
         logger.error(f"Unknown suffix: {mult}")
