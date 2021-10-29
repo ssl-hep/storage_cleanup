@@ -36,62 +36,80 @@ from servicex_storage import minio_storage_manager
 
 # function to initialize logging
 def initialize_logging():
-    """
-    Get a logger and initialize it so that it outputs the correct format
+  """
+  Get a logger and initialize it so that it outputs the correct format
 
-    :param request: Request id to insert into log messages
-    :return: logger with correct formatting that outputs to console
-    """
+  :param request: Request id to insert into log messages
+  :return: logger with correct formatting that outputs to console
+  """
 
-    log = logging.getLogger()
-    if 'INSTANCE_NAME' in os.environ:
-        instance = os.environ['INSTANCE_NAME']
-    else:
-        instance = 'Unknown'
-    formatter = logging.Formatter('%(levelname)s ' +
-                                  "{} minio_cleanup None ".format(instance) +
-                                  '%(message)s')
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.INFO)
-    log.addHandler(handler)
-    log.setLevel(logging.INFO)
-    return log
+  log = logging.getLogger()
+  if 'INSTANCE_NAME' in os.environ:
+    instance = os.environ['INSTANCE_NAME']
+  else:
+    instance = 'Unknown'
+  formatter = logging.Formatter('%(levelname)s ' +
+                                "{} minio_cleanup None ".format(instance) +
+                                '%(message)s')
+  handler = logging.StreamHandler()
+  handler.setFormatter(formatter)
+  handler.setLevel(logging.INFO)
+  log.addHandler(handler)
+  log.setLevel(logging.INFO)
+  return log
 
 
 def run_minio_cleaner():
-    '''Run the minio cleaner
-    '''
+  '''Run the minio cleaner
+  '''
 
-    # Parse the command line arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--max-size', dest='max_size', action='store',
-                        default='',
-                        help='Max size allowed before pruning storage')
+  # Parse the command line arguments
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--max-size', dest='max_size', action='store',
+                      default='',
+                      help='Max size allowed before pruning storage')
 
-    args = parser.parse_args()
-    logger.info("ServiceX Minio Cleaner starting up. "
-                f"Max size for storage: {args.max_size}")
-
-    env_vars = ['MINIO_URL', 'ACCESS_KEY', 'SECRET_KEY']
-    error = False
-    for var in env_vars:
-        if var not in os.environ:
-            logger.error(f"{var} not found in environment")
-            error = True
-    if error:
-        logger.error("Exiting due to missing environment variables")
+  args = parser.parse_args()
+  raw_max = 0
+  try:
+    if args.max_size[-1] in ['M', 'G', 'T']:  # process suffix
+      raw_max = int(args.max_size[:-1])
+      mult = args.max_size[-1]
+      if mult == 'M':
+        raw_max *= 2 ** 20
+      elif mult == 'G':
+        raw_max *= 2 ** 30
+      elif mult == 'T'
+        raw_max *= 2 ** 40
+      else:
+        logger.error(f"Unknown suffix: {mult}")
         sys.exit(1)
+  except ValueError:
+    logger.exception(f"Max size not correctly formatted: {args.max_size}")
+    sys.exit(1)
 
-    try:
-        store = minio_storage_manager.MinioStore(minio_url=os.environ['MINIO_URL'],
-                                                 access_key=os.environ['ACCESS_KEY'],
-                                                 secret_key=os.environ['SECRET_KEY'])
-        store.cleanup_storage()
-    finally:
-        logger.info('Done running minio storage cleanup')
+  logger.info("ServiceX Minio Cleaner starting up. "
+              f"Max size for storage: {args.max_size} - {raw_max}")
+
+  env_vars = ['MINIO_URL', 'ACCESS_KEY', 'SECRET_KEY']
+  error = False
+  for var in env_vars:
+    if var not in os.environ:
+      logger.error(f"{var} not found in environment")
+      error = True
+  if error:
+    logger.error("Exiting due to missing environment variables")
+    sys.exit(1)
+
+  try:
+    store = minio_storage_manager.MinioStore(minio_url=os.environ['MINIO_URL'],
+                                             access_key=os.environ['ACCESS_KEY'],
+                                             secret_key=os.environ['SECRET_KEY'])
+    store.cleanup_storage()
+  finally:
+    logger.info('Done running minio storage cleanup')
 
 
 if __name__ == "__main__":
-    logger = initialize_logging()
-    run_minio_cleaner()
+  logger = initialize_logging()
+  run_minio_cleaner()
