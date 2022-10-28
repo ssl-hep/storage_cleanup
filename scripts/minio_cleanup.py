@@ -1,3 +1,4 @@
+#!/usr/bin/python3.11
 # Copyright (c) 2019, IRIS-HEP
 # All rights reserved.
 #
@@ -31,11 +32,13 @@ import logging
 import os
 import sys
 
+import requests
+
 from servicex_storage import minio_storage_manager
 
 
 # function to initialize logging
-def initialize_logging():
+def initialize_logging() -> logging.Logger:
   """
   Get a logger and initialize it so that it outputs the correct format
 
@@ -67,6 +70,9 @@ def run_minio_cleaner():
   parser.add_argument('--max-size', dest='max_size', action='store',
                       default='',
                       help='Max size allowed before pruning storage')
+  parser.add_argument('--max-age', dest='max_age', action='store',
+                      default='30',
+                      help='Max age of files in days allowed before pruning storage')
 
   args = parser.parse_args()
   raw_max = 0
@@ -104,7 +110,10 @@ def run_minio_cleaner():
     store = minio_storage_manager.MinioStore(minio_url=os.environ['MINIO_URL'],
                                              access_key=os.environ['ACCESS_KEY'],
                                              secret_key=os.environ['SECRET_KEY'])
-    store.cleanup_storage()
+    results = store.cleanup_storage(max_size=raw_max, max_age=args.max_age)
+    logger.info(f"Final size after cleanup: {results[0]}")
+    for bucket in results[1]:
+      logger.info(f"Removed folder/bucket: {bucket}")
   finally:
     logger.info('Done running minio storage cleanup')
 
