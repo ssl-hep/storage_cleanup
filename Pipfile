@@ -5,9 +5,7 @@ name = "pypi"
 
 [packages]
 minio = "7.17.7"
-servicex_storage = {git = "https://github.com/ssl-hep/servicex_storage_lib",  ref = "5e2e8f4cb6403c5841c4f614ac93e3b1d0c24365"}
-requests = "2.28.1"
-types-requests = "2.28.11.2"
+servicex_storage = {git = "https://github.com/ssl-hep/servicex_storage_lib",  ref = "d2718063cc3f7f7729e649bdb927e50816c3de61"}
 
 [dev-packages]
 

@@ -32,8 +32,6 @@ import logging
 import os
 import sys
 
-import requests
-
 from servicex_storage import minio_storage_manager
 
 
@@ -61,6 +59,31 @@ def initialize_logging() -> logging.Logger:
   return log
 
 
+def parse_space(size: str) -> int:
+  """
+  Take a string like 100M or 20G or 30T and return an integer
+  number of bytes that string represents
+
+  raises ValueError if
+  :param size: a string with a M, G, T suffix indicating size
+  :return: integer number of bytes
+  """
+  if size[-1] in ['M', 'G', 'T']:  # process suffix
+    raw_max = int(size[:-1])
+    mult = size[-1]
+    if mult == 'M':
+      raw_max *= 2 ** 20
+    elif mult == 'G':
+      raw_max *= 2 ** 30
+    elif mult == 'T':
+      raw_max *= 2 ** 40
+    else:
+      raise ValueError
+    return raw_max
+  else:
+    return int(size)
+
+
 def run_minio_cleaner():
   '''Run the minio cleaner
   '''
@@ -70,31 +93,28 @@ def run_minio_cleaner():
   parser.add_argument('--max-size', dest='max_size', action='store',
                       default='',
                       help='Max size allowed before pruning storage')
+  parser.add_argument('--norm-size', dest='norm_size', action='store',
+                      default='',
+                      help='Size to prune storage to')
   parser.add_argument('--max-age', dest='max_age', action='store',
                       default='30',
                       help='Max age of files in days allowed before pruning storage')
 
   args = parser.parse_args()
-  raw_max = 0
   try:
-    if args.max_size[-1] in ['M', 'G', 'T']:  # process suffix
-      raw_max = int(args.max_size[:-1])
-      mult = args.max_size[-1]
-      if mult == 'M':
-        raw_max *= 2 ** 20
-      elif mult == 'G':
-        raw_max *= 2 ** 30
-      elif mult == 'T':
-        raw_max *= 2 ** 40
-      else:
-        logger.error(f"Unknown suffix: {mult}")
-        sys.exit(1)
+    raw_max = parse_space(args.max_size)
   except ValueError:
-    logger.exception(f"Max size not correctly formatted: {args.max_size}")
+    logger.error(f"Can't parse max size, got: {args.max_size}")
+    sys.exit(1)
+  try:
+    raw_norm = parse_space(args.norm_size)
+  except ValueError:
+    logger.error(f"Can't parse norm size, got: {args.norm_size}")
     sys.exit(1)
 
   logger.info("ServiceX Minio Cleaner starting up. "
-              f"Max size for storage: {args.max_size} - {raw_max}")
+              f"Max size for storage: {args.max_size} - {raw_max}" 
+              f"Low size for storage: {args.norm_size} - {raw_norm}")
 
   env_vars = ['MINIO_URL', 'ACCESS_KEY', 'SECRET_KEY']
   error = False
@@ -110,7 +130,7 @@ def run_minio_cleaner():
     store = minio_storage_manager.MinioStore(minio_url=os.environ['MINIO_URL'],
                                              access_key=os.environ['ACCESS_KEY'],
                                              secret_key=os.environ['SECRET_KEY'])
-    results = store.cleanup_storage(max_size=raw_max, max_age=args.max_age)
+    results = store.cleanup_storage(max_size=raw_max, norm_size=raw_norm, max_age=args.max_age)
     logger.info(f"Final size after cleanup: {results[0]}")
     for bucket in results[1]:
       logger.info(f"Removed folder/bucket: {bucket}")

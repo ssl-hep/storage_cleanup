@@ -4,4 +4,4 @@ mkdir instance
 PATH=.venv/bin:$PATH
 . .venv/bin/activate
 
-python3.11 ./minio_cleanup.py
+python3.11 ./minio_cleanup.py --max-size $MAX_SIZE --low-size $LOW_SIZE --max-age $MAX_AGE
